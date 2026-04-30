@@ -24,28 +24,6 @@ y: Numeric target
 x: Numeric with missing values in covariates (numeric predictor features)
 ```
 
-**Disclaimer:**
-+ This Notebook is a worked example only, it's not intended to be an academic reference
-+ The theory and math may be incorrect, incorrectly notated, or incorrectly used
-+ The code may contain errors, inefficiencies, legacy methods, and the text may have typos
-+ Use at your own risk!
-
-## Contents
-
-+ [Discussion](#Discussion)
-
-+ [Setup](#Setup)
-
-+ [0. Curate Dataset](#0.-Curate-Dataset)
-
-+ [1. `Model0`: Baseline without Missing Values](#1.-`Model0`:-Baseline-without-Missing-Values)
-
-+ [2. `ModelA`: Auto-impute Missing Values](#2.-`ModelA`:-Auto-impute-Missing-Values)
-
----
-
----
-
 # Discussion
 
 ## Problem Statement
