@@ -5,6 +5,6 @@
     }
   ],
   "settings": {
-    "cSpell.words": ["deepcopy", "Sedar"]
+    "cSpell.words": ["arviz", "deepcopy", "pytensor", "Sedar"]
   }
 }
