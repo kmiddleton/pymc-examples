@@ -1,7 +1,21 @@
-[tool.black]
-line-length = 100
-
-[tool.nbqa.mutate]
-isort = 1
-black = 1
-pyupgrade = 1
+[project]
+name = "pymc-examples"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "arviz>=0.13.0,<1.0",
+    "black>=26.3.1",
+    "codespell>=2.4.2",
+    "graphviz>=0.21",
+    "ipykernel>=7.2.0",
+    "ipython>=9.13.0",
+    "matplotlib>=3.10.9",
+    "nbconvert>=7.17.1",
+    "numba>=0.65.1",
+    "numpy>=2.4.4",
+    "pandas>=3.0.2",
+    "pymc>=5.28.0",
+    "pyyaml>=6.0.3",
+    "seaborn>=0.13.2",
+    "watermark>=2.6.0",
+]
