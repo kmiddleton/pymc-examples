@@ -35,15 +35,10 @@ Missing values break the model inference, because the log-likelihood for those o
 
 We have a few options to mitigate the situation:
 
-+ Firstly, we should always try to learn _why_ the values are missing. If they are _not_ Missing Completely At Random
-  (MCAR) {cite:p}`enders2022` and contain latent information about a biased or lossy data-generating process, then we
-  might choose to **remove the observations with missing vales** or **ignore the features that contain missing values**
-+ If we believe the values **are** Missing Completely At Random (MCAR), then we might choose to
-  **auto-impute the missing values** so that we can make use of all the available observations. This is particularly
-  acute when we have few observations and/or a high-degree of missingness.
+- Firstly, we should always try to learn why the values are missing. If they are not Missing Completely At Random (MCAR) {cite:p}`enders2022` and contain latent information about a biased or lossy data-generating process, then we might choose to remove the observations with missing vales or ignore the features that contain missing values
+- If we believe the values **are** Missing Completely At Random (MCAR), then we might choose to auto-impute the missing values so that we can make use of all the available observations. This is particularly acute when we have few observations and/or a high-degree of missingness.
 
-Here we demonstrate method(s) to auto-impute missing values as part of the `pymc` posterior sampling process. We get
-inference and prediction as usual, but also auto-imputed values for the missing values. Pretty neat!
+Here we demonstrate method(s) to auto-impute missing values as part of the `pymc` posterior sampling process. We get inference and prediction as usual, but also auto-imputed values for the missing values. Pretty neat!
 
 
 ## Data & Models Demonstrated
@@ -56,16 +51,10 @@ Our problem statement is that when faced with data with missing values, we want 
 
 This notebook takes the opportunity to:
 
-+ Demonstrate a general method using auto-imputation, which is often mentioned in `pymc` folklore but rarely
-  shown in full. A helpful primer and related discussion is this PyMCon2020 talk: {cite:p}`junpenglao2020`
-+ Demonstrate a reasonably complete Bayesian workflow {cite:p}`gelman2020bayesian` including data creation
+- Demonstrate a general method using auto-imputation, which is often mentioned in `pymc` folklore but rarely shown in full. A helpful primer and related discussion is this PyMCon2020 talk: {cite:p}`junpenglao2020`
+- Demonstrate a reasonably complete Bayesian workflow {cite:p}`gelman2020bayesian` including data creation
 
-This notebook is a partner to another `pymc-examples` notebook **Missing_Data_Imputation.ipynb**
-which goes into more detail of taxonomies and a much more complicated dataset and tutorial-style worked example.
-
----
-
----
+This notebook is a partner to another `pymc-examples` notebook **Missing_Data_Imputation.ipynb** which goes into more detail of taxonomies and a much more complicated dataset and tutorial-style worked example.
 
 # Setup
 
@@ -82,26 +71,16 @@ import numpy as np
 import pandas as pd
 import pymc as pm
 import pytensor.tensor as pt
-import sys
 
 from pymc.testing import assert_no_rvs
 
 # uv run ipython kernel install --user --env VIRTUAL_ENV $(pwd)/.venv --name="pymc-examples"
-
-# Check if running on MacOS and adjust pytensor config for find clang++
-if sys.platform == "darwin":
-    import pytensor
-
-    pytensor.config.cxx = "/usr/bin/clang++"
 
 warnings.simplefilter(action="ignore", category=FutureWarning)  # noqa
 import seaborn as sns
 ```
 
 ```{python}
-%matplotlib inline
-%config InlineBackend.figure_format = 'retina'
-
 sns.set_theme(
     style="darkgrid",
     palette="muted",
@@ -118,17 +97,17 @@ SAMPLE_KWS = dict(
 )
 
 RNG = np.random.default_rng(seed=42)
-KWS_MN = dict(markerfacecolor="w", markeredgecolor="#333333", marker="d", markersize=12)
+KWS_MN = dict(
+    markerfacecolor="w", markeredgecolor="#333333", marker="d", markersize=12
+)
 KWS_BOX = dict(kind="box", showmeans=True, whis=(3, 97), meanprops=KWS_MN)
-KWS_PNT = dict(estimator=np.mean, errorbar=("ci", 94), join=False, color="#32CD32")
+KWS_PNT = dict(
+    estimator=np.mean, errorbar=("ci", 94), join=False, color="#32CD32"
+)
 KWS_SCTR = dict(s=80, color="#32CD32")
 ```
 
----
-
----
-
-# 0. Curate Dataset
+# Curate Dataset
 
 **IMPLEMENTATION NOTE**
 
@@ -144,9 +123,9 @@ KWS_SCTR = dict(s=80, color="#32CD32")
   distributed: to make this example harder, the reader could experiment with
   other distributions
 
-## 0.1 Create Synthetic Dataset
+## Create Synthetic Dataset
 
-### 0.1.0 Create "true" (unobserved) dataset (without missing values)
+### Create "true" (unobserved) dataset (without missing values)
 
 ```{python}
 REFVAL_X_MU = dict(a=1, b=1, c=10, d=2)
@@ -158,10 +137,18 @@ REFVAL_BETA = dict(intercept=-4, a=10, b=-20, c=30, d=5)
 N = 40
 dfraw = pd.DataFrame(
     {
-        "a": RNG.normal(loc=REFVAL_X_MU["a"], scale=REFVAL_X_SIGMA["a"], size=N),
-        "b": RNG.normal(loc=REFVAL_X_MU["b"], scale=REFVAL_X_SIGMA["b"], size=N),
-        "c": RNG.normal(loc=REFVAL_X_MU["c"], scale=REFVAL_X_SIGMA["c"], size=N),
-        "d": RNG.normal(loc=REFVAL_X_MU["d"], scale=REFVAL_X_SIGMA["d"], size=N),
+        "a": RNG.normal(
+            loc=REFVAL_X_MU["a"], scale=REFVAL_X_SIGMA["a"], size=N
+        ),
+        "b": RNG.normal(
+            loc=REFVAL_X_MU["b"], scale=REFVAL_X_SIGMA["b"], size=N
+        ),
+        "c": RNG.normal(
+            loc=REFVAL_X_MU["c"], scale=REFVAL_X_SIGMA["c"], size=N
+        ),
+        "d": RNG.normal(
+            loc=REFVAL_X_MU["d"], scale=REFVAL_X_SIGMA["d"], size=N
+        ),
     },
     index=[f"o{str(i).zfill(2)}" for i in range(N)],
 )
@@ -174,17 +161,25 @@ dfraw["y"] = (
 dfraw.tail()
 ```
 
-### 0.1.1 Force 2 features to contain 40% unobserved missing values
+### Force 2 features to contain 40% unobserved missing values
 
 ```{python}
 df = dfraw.copy()
 
 prop_missing = 0.4
-df.loc[RNG.choice(df.index, int(N * prop_missing), replace=False), "c"] = np.nan
-df.loc[RNG.choice(df.index, int(N * prop_missing), replace=False), "d"] = np.nan
+df.loc[RNG.choice(df.index, int(N * prop_missing), replace=False), "c"] = (
+    np.nan
+)
+df.loc[RNG.choice(df.index, int(N * prop_missing), replace=False), "d"] = (
+    np.nan
+)
 idx = df[["c", "d"]].isnull().sum(axis=1) > 0
 display(df.loc[idx])
-display(pd.concat((df.describe(include="all").T, df.isnull().sum(), df.dtypes), axis=1))
+display(
+    pd.concat(
+        (df.describe(include="all").T, df.isnull().sum(), df.dtypes), axis=1
+    )
+)
 ```
 
 **Observe:**
@@ -192,12 +187,12 @@ display(pd.concat((df.describe(include="all").T, df.isnull().sum(), df.dtypes), 
 + Features `a` and `b` are full, complete, without missing values
 + Features `c` and `d` contain missing values, where observations can even contain missing values for both features
 
-> NOTE we dont need any further steps to prepare the dataset (e.g. clean observations & features, force datatypes, set
+> NOTE we don't need any further steps to prepare the dataset (e.g., clean observations & features, force datatypes, set
 > indexes, etc), so we will move straight to EDA and transformations for model input
 
-## 0.2 Very limited quick EDA
+## Very limited quick EDA
 
-### 0.2.1 Univariate: target `y`
+### Univariate: target `y`
 
 ```{python}
 def plot_univariate_violin(df: pd.DataFrame, fts: list):
@@ -232,7 +227,7 @@ plot_univariate_violin(df, fts=["y"])
 
 + `y` Looks smooth, reasonably central, can probably model with a Normal likelihood
 
-### 0.2.2 Univariate: predictors `a, b, c, d`
+### Univariate: predictors `a, b, c, d`
 
 ```{python}
 plot_univariate_violin(df, fts=["a", "b", "c", "d"])
@@ -243,7 +238,7 @@ plot_univariate_violin(df, fts=["a", "b", "c", "d"])
 + `a`, `b`, `c`, `d` Vary across the range, but all reasonably central, can probably model with Normal distributions
 + `c`, `d` each contain `16` NaN values
 
-### 0.2.3 Bivariate: target vs predictors
+### Bivariate: target vs predictors
 
 ```{python}
 dfp = df.reset_index().melt(id_vars=["oid", "y"], var_name="ft")
@@ -264,17 +259,15 @@ _ = g.fig.tight_layout()
 
 **Observe:**
 
-+ Each of features `a`, `b`, `c`, `d` has a correlation to `y`, some stronger, some weaker
-+ This looks fairly realistic
+- Each of features `a`, `b`, `c`, `d` has a correlation to `y`, some stronger, some weaker
+- This looks fairly realistic
 
-## 0.3 Transform dataset to `dfx` for model input
+## Transform dataset to `dfx` for model input
 
 **IMPORTANT NOTE**
 
-+ Reminder that Bayesian inferential methods **do not need** a `test` dataset (nor k-fold cross validation)
-  to fit parameters.
-+ We also **do not need** a `holdout` (out-of-sample) dataset (that contains target `y` values) to evaluate model
-  performance, because we can use in-sample PPC, LOO-PIT and ELPD evaluations
++ Reminder that Bayesian inferential methods **do not need** a `test` dataset (nor k-fold cross validation) to fit parameters.
++ We also **do not need** a `holdout` (out-of-sample) dataset (that contains target `y` values) to evaluate model performance, because we can use in-sample PPC, LOO-PIT and ELPD evaluations
 + Depending on the real-world model implementation we might:
   + Create a separate `holdout` set (even though we dont need it) to simply eyeball the behaviour of predictive outputs
   + Create a `forecast` set (which does not have target `y` values) to demonstrate how we would use the model and it's
@@ -293,7 +286,7 @@ _ = g.fig.tight_layout()
 |<- Training/CrossVal ->||<- Test/Holdout ->|
 ```
 
-### 0.3.1 Separate `df_train` and `df_holdout`
+### Separate `df_train` and `df_holdout`
 
 **NOTE**
 
@@ -313,16 +306,25 @@ display(
 ```
 
 ```{python}
-df_holdout = df.loc[list(set(df.index.values) - set(df_train.index.values))].copy().sort_index()
+df_holdout = (
+    df.loc[list(set(df.index.values) - set(df_train.index.values))]
+    .copy()
+    .sort_index()
+)
 print(df_holdout.shape)
 display(
     pd.concat(
-        (df_holdout.describe(include="all").T, df_holdout.isnull().sum(), df_holdout.dtypes), axis=1
+        (
+            df_holdout.describe(include="all").T,
+            df_holdout.isnull().sum(),
+            df_holdout.dtypes,
+        ),
+        axis=1,
     )
 )
 ```
 
-### 0.3.2 Create `dfx_train`
+### Create `dfx_train`
 
 Transform (zscore and scale) numerics
 
@@ -341,7 +343,7 @@ dfx_train = pd.concat((df_train[FTS_Y], icpt, df_train[FTS_NON_NUM], dfx_train_n
 display(dfx_train.describe().T)
 ```
 
-### 0.3.3 Create `dfx_holdout`
+### Create `dfx_holdout`
 
 ```{python}
 dfx_holdout_num = (df_holdout[FTS_NUM] - MNS) / SDEVS
@@ -356,7 +358,7 @@ display(dfx_holdout.describe().T)
 
 ---
 
-# 1. `Model0`: Baseline without Missing Values
+# `Model0`: Baseline without Missing Values
 
 This section might seem unusual or unnecessary, but will hopefully provide a useful comparison for general behaviour
 and help to further explain the model architecture used in `ModelA`.
@@ -379,7 +381,7 @@ where:
 + Our target is $\hat{y_{i}}$, here of `y` with linear sub-model $\beta_{j}^{T}\mathbb{x}_{ij}$
   to regress onto those features
 
-## 1.0 Quickly prepare non-missing datasets based on `dfraw`
+## Quickly prepare non-missing datasets based on `dfraw`
 
 This is a lightly simplified copy of the same logic / workflow in $\S0.3$ above. We won't take up any more space here
 with EDA, the only difference is `c` and `d` are now complete
@@ -430,7 +432,7 @@ print(SDEVS)
 print(SDEVS_RAW)
 ```
 
-## 1.1 Build Model Object
+## Build Model Object
 
 ```{python}
 ft_y = "y"
@@ -473,7 +475,7 @@ mdl0.debug(fn="random", verbose=True)
 
 + This is a very straightforward model
 
-## 1.2 Sample Prior Predictive, View Diagnostics
+## Sample Prior Predictive, View Diagnostics
 
 ```{python}
 GRP = "prior"
@@ -482,7 +484,7 @@ with mdl0:
     id0 = pm.sample_prior_predictive(var_names=RVS_PPC + RVS_PRIOR, **kws)
 ```
 
-### 1.2.1 In-Sample Prior PPC (Retrodictive Check)
+### In-Sample Prior PPC (Retrodictive Check)
 
 ```{python}
 def plot_ppc_retrodictive(
@@ -508,7 +510,7 @@ f = plot_ppc_retrodictive(id0, grp=GRP, rvs=["yhat"], mdlnm="mdl0", ynm="y")
 + However the general range and scale is reasonable and the sampler should be able to
   find the highest likelihood latent space easily
 
-### 1.2.2 Quick look at selected priors
+### Quick look at selected priors
 
 #### Coefficients etc
 
@@ -541,9 +543,9 @@ f = plot_krushke(id0, GRP, rvs=RVS_PRIOR, mdlnm="mdl0", n=1 + 1 + 5, nrows=2)
 
 + Model priors `beta_sigma`, `beta_j: (levels)`, `epsilon` all have reasonable prior ranges as specified
 
-## 1.3 Sample Posterior, View Diagnostics
+## Sample Posterior, View Diagnostics
 
-### 1.3.1 Sample Posterior and PPC
+### Sample Posterior and PPC
 
 ```{python}
 GRP = "posterior"
@@ -555,24 +557,40 @@ with mdl0:
     )
 ```
 
-### 1.3.2 View Traces
+### View Traces
 
 ```{python}
 def plot_traces_and_display_summary(
-    idata: az.InferenceData, rvs: list = None, coords: dict = None, mdlnm="mdla", energy=False
+    idata: az.InferenceData,
+    rvs: list = None,
+    coords: dict = None,
+    mdlnm="mdla",
+    energy=False,
 ) -> plt.Figure:
     """Convenience to plot traces and display summary table for rvs"""
-    _ = az.plot_trace(idata, var_names=rvs, coords=coords, figsize=(12, 0.8 + 1.1 * len(rvs)))
+    _ = az.plot_trace(
+        idata,
+        var_names=rvs,
+        coords=coords,
+        figsize=(12, 0.8 + 1.1 * len(rvs)),
+    )
     f = plt.gcf()
     _ = f.suptitle(f"Posterior traces of {rvs} - `{mdlnm}`")
     _ = f.tight_layout()
     if energy:
-        _ = az.plot_energy(idata, fill_alpha=(0.8, 0.6), fill_color=("C0", "C8"), figsize=(12, 1.6))
+        _ = az.plot_energy(
+            idata,
+            fill_alpha=(0.8, 0.6),
+            fill_color=("C0", "C8"),
+            figsize=(12, 1.6),
+        )
     display(az.summary(idata, var_names=rvs))
     return f
 
 
-f = plot_traces_and_display_summary(id0, rvs=RVS_PRIOR, mdlnm="mdl0", energy=True)
+f = plot_traces_and_display_summary(
+    id0, rvs=RVS_PRIOR, mdlnm="mdl0", energy=True
+)
 ```
 
 **Observe:**
@@ -581,7 +599,7 @@ f = plot_traces_and_display_summary(id0, rvs=RVS_PRIOR, mdlnm="mdl0", energy=Tru
 + Marginal energy | energy transition looks a little mismatched, but `E-BFMI >> 0.3` so is
   [apparently reasonable](https://python.arviz.org/en/stable/api/generated/arviz.bfmi.html#arviz.bfmi)
 
-### 1.3.3 In-Sample Posterior PPC (Retrodictive Check)
+### In-Sample Posterior PPC (Retrodictive Check)
 
 ```{python}
 f = plot_ppc_retrodictive(id0, grp=GRP, rvs=["yhat"], mdlnm="mdl0", ynm="y")
@@ -591,7 +609,7 @@ f = plot_ppc_retrodictive(id0, grp=GRP, rvs=["yhat"], mdlnm="mdl0", ynm="y")
 
 + In-sample PPC `yhat` tracks the observed `y` very closely
 
-### 1.3.4 In-Sample PPC LOO-PIT
+### In-Sample PPC LOO-PIT
 
 ```{python}
 def plot_loo_pit(
@@ -615,9 +633,9 @@ f = plot_loo_pit(id0, "mdla")
 
 + `LOO-PIT` looks good, very slightly overdispersed but more than acceptable for use
 
-## 1.4 Evaluate Posterior Parameters
+## Evaluate Posterior Parameters
 
-### 1.4.1 Coefficients etc
+### Coefficients etc
 
 ```{python}
 f = plot_krushke(id0, GRP, RVS_PRIOR, mdlnm="mdl0", n=1 + 1 + 5, nrows=2)
@@ -651,9 +669,9 @@ f = plot_forest(id0, grp=GRP, rvs=["beta_j"], mdlnm="mdl0")
 + Very tight and distinct posterior distributions
 + The levels broadly correspond to what we would expect to see, given the synthetic data creation
 
-## 1.5 Create PPC Forecast on `dfrawx_holdout` set
+## Create PPC Forecast on `dfrawx_holdout` set
 
-### 1.5.1 Replace dataset with `dfrawx_holdout`
+### Replace dataset with `dfrawx_holdout`
 
 ```{python}
 COORDS_F = deepcopy(COORDS)
@@ -661,14 +679,14 @@ COORDS_F["oid"] = dfrawx_holdout.index.values
 mdl0.set_data("xj", dfrawx_holdout[FTS_XJ].values, coords=COORDS_F)
 ```
 
-### 1.5.2 Sample PPC for `yhat`
+### Sample PPC for `yhat`
 
 ```{python}
 with mdl0:
     id0_h = pm.sample_posterior_predictive(trace=id0.posterior, var_names=RVS_PPC, predictions=True)
 ```
 
-### 1.5.3 Out-of-sample: Compare forecasted `yhat` to known true value `y`
+### Out-of-sample: Compare forecasted `yhat` to known true value `y`
 
 ##### Extract `yhat` from PPC idata, and attach real values (only available because it's a `holdout` set)
 
@@ -676,8 +694,8 @@ with mdl0:
 dfraw_h_y = (
     az.extract(id0_h, group="predictions", var_names=["yhat"])
     .to_dataframe()
-    .drop("sample", axis=1)
     .reset_index()
+    .drop(["chain", "draw"], axis=1)
     .set_index(["oid"])
 )
 dfraw_h_y = pd.merge(dfraw_h_y, dfraw_holdout[["y"]], how="left", left_index=True, right_index=True)
@@ -714,7 +732,7 @@ _ = plot_yhat_vs_y(dfraw_h_y, mdlnm="mdl0")
 
 ---
 
-# 2. `ModelA`: Auto-impute Missing Values
+# `ModelA`: Auto-impute Missing Values
 
 Now we progress to handling missing values!
 
@@ -794,7 +812,7 @@ In particular:
     ```
 
 
-## 2.1 Build Model Object
+## Build Model Object
 
 ```{python}
 ft_y = "y"
@@ -839,6 +857,8 @@ RVS_XK_UNOBS = ["xk_unobserved"]
 ##### Verify the built model structure matches our intent, and validate the parameterization
 
 ```{python}
+# | echo: false
+
 display(pm.model_to_graphviz(mdla, formatting="plain"))
 display(dict(unobserved=mdla.unobserved_RVs, observed=mdla.observed_RVs))
 assert_no_rvs(mdla.logp())
@@ -848,14 +868,11 @@ mdla.debug(fn="random", verbose=True)
 
 **Observe:**
 
-+ We have two new auto-created nodes `xk_observed` (observed data) and `xk_unobserved` (unobserved free RV), which
-  each have same distribution as we specified for `xk`
-+ The original `xk` is now represented by a new `Deterministic` node with a function of the two (concatenation and reshaping)
-+ In particular note `xk_unobserved` has a new, flattened shape with length equal to the count of NaNs in the relevant
-  features $k$, and it loses the `dims` that we assigned to `xk`. This is an unhelpful current limitation and means we
-  have to do some indexing to recover the PPC values later
+- We have two new auto-created nodes `xk_observed` (observed data) and `xk_unobserved` (unobserved free RV), which each have same distribution as we specified for `xk`
+- The original `xk` is now represented by a new `Deterministic` node with a function of the two (concatenation and reshaping)
+- In particular note `xk_unobserved` has a new, flattened shape with length equal to the count of NaNs in the relevant features $k$, and it loses the `dims` that we assigned to `xk`. This is an unhelpful current limitation and means we have to do some indexing to recover the PPC values later
 
-## 2.2 Sample Prior Predictive, View Diagnostics
+## Sample Prior Predictive, View Diagnostics
 
 ```{python}
 GRP = "prior"
@@ -866,7 +883,7 @@ with mdla:
     )
 ```
 
-### 2.2.1 In-Sample Prior PPC (Retrodictive Check)
+### In-Sample Prior PPC (Retrodictive Check)
 
 ```{python}
 f = plot_ppc_retrodictive(ida, grp=GRP, rvs=["yhat"], mdlnm="mdla", ynm="y")
@@ -876,7 +893,7 @@ f = plot_ppc_retrodictive(ida, grp=GRP, rvs=["yhat"], mdlnm="mdla", ynm="y")
 
 + Values are wrong as expected, but range is reasonable
 
-### 2.2.2 Quick look at selected priors
+### Quick look at selected priors
 
 #### Coefficients etc
 
@@ -886,7 +903,7 @@ f = plot_krushke(ida, GRP, rvs=RVS_PRIOR, mdlnm="mdla", n=1 + 1 + 3 + 2, nrows=2
 
 **Observe:**
 
-+ Model priors `beta_sigma`, `beta_j: (levels)`, `beta_k: (levels)`, `epsilon` all have reasonable prior ranges as specified
+- Model priors `beta_sigma`, `beta_j: (levels)`, `beta_k: (levels)`, `epsilon` all have reasonable prior ranges as specified
 
 #### Hierarchical values $\mu_{k}$ for missing data in $\mathbb{x}_{k}$
 
@@ -906,24 +923,26 @@ f = plot_forest(ida, GRP, RVS_XK_UNOBS, "mdla")
 
 **Observe:**
 
-+ Prior values for the auto-imputed data `xk_unobserved` are of course all the same, and in reasonable ranges as specified
-+ Note again that this is a flattened RV with length equal to the count of NaNs in features `c` and `d`
+- Prior values for the auto-imputed data `xk_unobserved` are of course all the same, and in reasonable ranges as specified
+- Note again that this is a flattened RV with length equal to the count of NaNs in features `c` and `d`
 
-## 2.3 Sample Posterior, View Diagnostics
+## Sample Posterior, View Diagnostics
 
-### 2.3.1 Sample Posterior and PPC
+### Sample Posterior and PPC
 
 ```{python}
 GRP = "posterior"
 with mdla:
     ida.extend(pm.sample(**SAMPLE_KWS), join="right")
     ida.extend(
-        pm.sample_posterior_predictive(trace=ida.posterior, var_names=RVS_PPC),
+        pm.sample_posterior_predictive(
+            trace=ida.posterior, var_names=RVS_PPC
+        ),
         join="right",
     )
 ```
 
-### 2.3.2 View Traces
+### View Traces
 
 ```{python}
 f = plot_traces_and_display_summary(ida, rvs=RVS_PRIOR + RVS_K, mdlnm="mdla", energy=True)
@@ -936,7 +955,7 @@ f = plot_traces_and_display_summary(ida, rvs=RVS_PRIOR + RVS_K, mdlnm="mdla", en
   [apparently reasonable](https://python.arviz.org/en/stable/api/generated/arviz.bfmi.html#arviz.bfmi)), note the
   values are lower than for `Model0`. This is an effect of the missing data.
 
-### 2.3.3 In-Sample Posterior PPC (Retrodictive Check)
+### In-Sample Posterior PPC (Retrodictive Check)
 
 ```{python}
 f = plot_ppc_retrodictive(ida, grp=GRP, rvs=["yhat"], mdlnm="mdla", ynm="y")
@@ -947,7 +966,7 @@ f = plot_ppc_retrodictive(ida, grp=GRP, rvs=["yhat"], mdlnm="mdla", ynm="y")
 + In-sample PPC `yhat` tracks the observed `y` moderately well: slightly overdispersed, perhaps a likelihood
   with fatter tails would be more appropriate (e.g. StudentT)
 
-### 2.3.4 In-Sample PPC LOO-PIT
+### In-Sample PPC LOO-PIT
 
 ```{python}
 f = plot_loo_pit(ida, "mdla")
@@ -957,7 +976,7 @@ f = plot_loo_pit(ida, "mdla")
 
 + `LOO-PIT` looks good, again slightly overdispersed but acceptable for use
 
-### 2.3.5 Compare Log-Likelihood vs Other Models
+### Compare Log-Likelihood vs Other Models
 
 ```{python}
 def plot_compare_log_likelihood(idatad: dict, yhat: str = "yhat") -> plt.Figure:
@@ -984,9 +1003,9 @@ f = plot_compare_log_likelihood(idatad={"mdl0": id0, "mdla": ida})
   of the complete dataset (no missing values), but it's not that much worse, and (of course) we've been able to handle
   missing values in the in-sample data!
 
-## 2.4 Evaluate Posterior Parameters
+## Evaluate Posterior Parameters
 
-### 2.4.1 Coefficients etc
+### Coefficients etc
 
 ```{python}
 f = plot_krushke(ida, GRP, RVS_PRIOR, mdlnm="mdla", n=1 + 1 + 3 + 2, nrows=2)
@@ -1007,7 +1026,7 @@ f = plot_forest(ida, grp=GRP, rvs=["beta_j", "beta_k"], mdlnm="mdla")
 + Very tight and distinct posterior distributions
 + Loosely compare this to the same plot for `Model0` in $\S1.4$ above:
 
-### 2.4.2 Hierarchical values for missing data in $\mathbb{x}_{k}$
+### Hierarchical values for missing data in $\mathbb{x}_{k}$
 
 ```{python}
 f = plot_krushke(ida, GRP, RVS_K, mdlnm="mdla", n=2, nrows=1)
@@ -1019,7 +1038,7 @@ f = plot_krushke(ida, GRP, RVS_K, mdlnm="mdla", n=2, nrows=1)
 + However, they do show slight differences which is encouraging of them picking up the inherent differences in the
   primary raw data due to `REFVALS_X_MU`
 
-### 2.4.3 View auto-imputed values of missing data in $x_{k}$ (`xk_unobserved`)
+### View auto-imputed values of missing data in $x_{k}$ (`xk_unobserved`)
 
 ```{python}
 f = plot_forest(ida, GRP, RVS_XK_UNOBS, "mdla")
@@ -1032,7 +1051,7 @@ f = plot_forest(ida, GRP, RVS_XK_UNOBS, "mdla")
   missing data
 + We'll show that indexing and a special comparison to the synthetic known values next
 
-### 2.4.4 In-sample: Compare auto-imputed values $x_{k}$ `xk_unobserved` to known true values
+### In-sample: Compare auto-imputed values $x_{k}$ `xk_unobserved` to known true values
 
 **NOTE**
 
@@ -1059,8 +1078,8 @@ df_mns_sdevs.index.name = "xk_nm"
 df_xk_unobs = (
     az.extract(ida, group=GRP, var_names=RVS_XK)
     .to_dataframe()
-    .drop("sample", axis=1)
     .reset_index()
+    .drop(["chain", "draw"], axis=1)
     .set_index(["oid", "xk_nm"])
     .loc[idx_xk_unobs]
 )
@@ -1147,7 +1166,7 @@ _ = plot_xkhat_vs_xk(df_xk_unobs, mdlnm="mdla")
   possibility of a lack of identifiability: this is an interesting and not easily avoided side-effect of the data and
   model architecture, and in the real-world we might seek to mitigate through removing observations or features.
 
-## 2.5 Create PPC Forecast on `dfx_holdout` set
+## Create PPC Forecast on `dfx_holdout` set
 
 **IMPLEMENTATION NOTE**
 
@@ -1170,7 +1189,7 @@ The following process is a bit of a hack:
 + In any case, if this were to be deployed to handle a stream of sub-second inputs, a much simpler way to rectify the
   situation would be to ensure proper data validation / hygiene upstream and require no missing data!
 
-### 2.5.1 Firstly: Rebuild model entirely, using `dfx_holdout`
+### Firstly: Rebuild model entirely, using `dfx_holdout`
 
 ```{python}
 COORDS_H = deepcopy(COORDS)
@@ -1209,7 +1228,7 @@ mdla_h.debug(fn="logp", verbose=True)
 mdla_h.debug(fn="random", verbose=True)
 ```
 
-### 2.5.2 Secondly: sample PPC for missing values `xk_unobserved` in out-of-sample dataset
+### Secondly: sample PPC for missing values `xk_unobserved` in out-of-sample dataset
 
 **NOTE**
 
@@ -1233,47 +1252,30 @@ del (
     ida_h.observed_data,
     ida_h.constant_data,
 )
+# Drop training-specific variables whose shapes are incompatible with holdout model
+# (xk_unobserved has 26 elements in training vs 6 in holdout, xk is 30x2 vs 10x2)
+ida_h.posterior = ida_h.posterior.drop_vars(["xk_unobserved", "xk"])
 ida_h
 ```
 
 ```{python}
-# NOTE for later clarity and to avoid overwriting, temporarily save posterior
-# [xk, xk_unobserved] into group `posterior_predictive`` and remove any more
-# unnecessary groups
-
+# Sample xk_unobserved, xk, and yhat together in a single call.
+# Since xk_unobserved and xk were dropped from the posterior (incompatible shapes),
+# they will be freshly sampled/computed for the holdout model's structure.
 with mdla_h:
-    ida_h.extend(
-        pm.sample_posterior_predictive(
-            trace=ida_h.posterior, var_names=["xk_unobserved", "xk"], predictions=False
-        ),
-        join="right",
+    ida_h = pm.sample_posterior_predictive(
+        trace=ida_h.posterior,
+        var_names=["xk_unobserved", "xk", "yhat"],
+        predictions=True,
     )
-
-del ida_h.observed_data, ida_h.constant_data
 ida_h
 ```
 
-### 2.5.3 Thirdly: sub the predictions for `xk_unobserved` into idata and sample PPC for `yhat`
+### Thirdly: sub the predictions for `xk_unobserved` into idata and sample PPC for `yhat`
 
 ```{python}
-# NOTE overwrite [xk, xk_observed] in group `posterior` and sample yhat into new
-# group `predictions`
-ida_h.posterior.update({"xk_unobserved": ida_h.posterior_predictive.xk_unobserved})
-ida_h.posterior.update({"xk": ida_h.posterior_predictive.xk})
-
-with mdla_h:
-    ida_h.extend(
-        pm.sample_posterior_predictive(trace=ida_h.posterior, var_names=["yhat"], predictions=True),
-        join="right",
-    )
-
-# NOTE copy [xk, xk_observed] into group `predictions` to make it clear that these
-# dont fit in group `posterior` (the dims / coords issue), and drop groups
-# `posterior_predictive` and `posterior`
-ida_h.predictions.update({"xk_unobserved": ida_h.posterior_predictive.xk_unobserved})
-ida_h.predictions.update({"xk": ida_h.posterior_predictive.xk})
-
-del ida_h.posterior_predictive, ida_h.posterior
+# All predictions (xk_unobserved, xk, yhat) were sampled in the previous cell.
+# ida_h.predictions now contains all three variables.
 ida_h
 ```
 
@@ -1282,7 +1284,7 @@ ida_h
 + Finally in `ida_h` we have Datasets for `predictions` and `predictions_constant_data` as if we'd done only one step
 + `mdla_h` can be safely removed
 
-### 2.5.4 Out-of-sample: Compare auto-imputed values $x_{k}$ `xk_unobserved` to known true values
+### Out-of-sample: Compare auto-imputed values $x_{k}$ `xk_unobserved` to known true values
 
 **NOTE**
 
@@ -1307,8 +1309,8 @@ idx_h_xk_unobs = dfx_holdout_xk.loc[dfx_holdout_xk["xk"].isnull()].index
 df_h_xk_unobs = (
     az.extract(ida_h, group="predictions", var_names=["xk"])
     .to_dataframe()
-    .drop("sample", axis=1)
     .reset_index()
+    .drop(["chain", "draw"], axis=1)
     .set_index(["oid", "xk_nm"])
     .loc[idx_h_xk_unobs]
 )
@@ -1356,7 +1358,7 @@ _ = plot_xkhat_vs_xk(df_h_xk_unobs, mdlnm="mdla", in_samp=False)
   values for `xk_unobserved` **can't** be any more informative than the posterior distribution of the hierarchical
   prior `xk_mu`.
 
-### 2.5.5 Out-of-sample: Compare forecasted $\hat{y}$ `yhat` to known true values
+### Out-of-sample: Compare forecasted $\hat{y}$ `yhat` to known true values
 
 ##### Extract `yhat` from PPC idata, and attach real values (only available because it's a `holdout` set)
 
@@ -1364,8 +1366,8 @@ _ = plot_xkhat_vs_xk(df_h_xk_unobs, mdlnm="mdla", in_samp=False)
 df_h_y = (
     az.extract(ida_h, group="predictions", var_names=["yhat"])
     .to_dataframe()
-    .drop("sample", axis=1)
     .reset_index()
+    .drop(["chain", "draw"], axis=1)
     .set_index(["oid"])
 )
 df_h_y = pd.merge(df_h_y, df_holdout[["y"]], how="left", left_index=True, right_index=True)
