@@ -1,0 +1,48 @@
+---
+title: "Missing Data"
+format:
+  html:
+    toc: true
+    toc_depth: 4
+    toc_float: true
+    embed-resources: true
+jupyter: pymc-examples
+---
+
+
+```{python}
+import numpy as np
+import pymc as pm
+import arviz as az
+import pandas as pd
+```
+
+```{python}
+np.random.seed(42)
+n = 100
+true_mu = np.array([0.0, 0.0])
+true_cov = np.array([[1.0, 0.8], [0.8, 1.0]])
+data_complete = np.random.multivariate_normal(true_mu, true_cov, n)
+data = data_complete.copy()
+
+missing_mask = np.random.random((n, 2)) < 0.2
+data[missing_mask] = np.nan
+
+df = pd.DataFrame(data, columns=["x1", "x2"])
+obs_data = df.values.astype(np.float32)
+
+with pm.Model() as model:
+    mu = pm.Normal("mu", 0, 10, shape=2)
+    sigma = pm.HalfNormal("sigma", 5, shape=2)
+    full_data = pm.Normal("full_data", mu=mu, sigma=sigma, observed=obs_data)
+
+    trace = pm.sample(
+        2000,
+        tune=2000,
+        chains=4,
+        cores=4,
+        target_accept=0.99,
+    )
+
+print(az.summary(trace))
+```
