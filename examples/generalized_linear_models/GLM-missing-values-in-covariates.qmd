@@ -613,7 +613,10 @@ f = plot_ppc_retrodictive(id0, grp=GRP, rvs=["yhat"], mdlnm="mdl0", ynm="y")
 
 ```{python}
 def plot_loo_pit(
-    idata: az.InferenceData, mdlname: str = "mdla", y: str = "yhat", y_hat: str = "yhat"
+    idata: az.InferenceData,
+    mdlname: str = "mdla",
+    y: str = "yhat",
+    y_hat: str = "yhat",
 ) -> plt.Figure:
     """Convenience plot LOO-PIT KDE and ECDF"""
     f, axs = plt.subplots(1, 2, figsize=(12, 2.4))
@@ -649,14 +652,19 @@ f = plot_krushke(id0, GRP, RVS_PRIOR, mdlnm="mdl0", n=1 + 1 + 5, nrows=2)
 
 ```{python}
 def plot_forest(
-    idata: az.InferenceData, grp: str = "posterior", rvs: list = None, mdlnm="mdla"
+    idata: az.InferenceData,
+    grp: str = "posterior",
+    rvs: list = None,
+    mdlnm="mdla",
 ) -> plt.Figure:
     """Convenience forestplot posterior (or prior) KDE"""
 
     n = sum([idata[grp][rv].shape[-1] for rv in rvs])
     f, axs = plt.subplots(1, 1, figsize=(12, 0.6 + 0.3 * n))
     _ = az.plot_forest(idata[grp], var_names=rvs, ax=axs, combined=True)
-    _ = f.suptitle(f"Forestplot of {grp.title()} level values for `{rvs}` - `{mdlnm}`")
+    _ = f.suptitle(
+        f"Forestplot of {grp.title()} level values for `{rvs}` - `{mdlnm}`"
+    )
     _ = f.tight_layout()
     return f
 
